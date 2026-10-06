@@ -1,4 +1,4 @@
-package com.roles.usermanagement.modules.sale;
+package com.roles.usermanagement.modules.purchase;
 
 import com.roles.usermanagement.modules.videogame.Videojuego;
 import com.roles.usermanagement.persistance.entity.UserEntity;
@@ -9,10 +9,10 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "ventas")
+@Table(name = "compras")
 @Getter
 @Setter
-public class Sale {
+public class Purchase {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,10 +22,13 @@ public class Sale {
     private LocalDateTime fecha = LocalDateTime.now();
 
     @Column(nullable = false, length = 255)
-    private String concepto;
+    private String descripcion;
 
     @Column(nullable = false, precision = 19, scale = 2)
-    private BigDecimal monto;
+    private BigDecimal costo;
+
+    @Column(nullable = false, length = 150)
+    private String proveedor;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "videojuego_id", nullable = false)
