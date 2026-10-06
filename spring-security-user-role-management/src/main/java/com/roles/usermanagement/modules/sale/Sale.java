@@ -1,6 +1,6 @@
 package com.roles.usermanagement.modules.sale;
 
-import com.roles.usermanagement.modules.videogame.Videojuego;
+import com.roles.usermanagement.modules.videogame.VideoGame;
 import com.roles.usermanagement.persistance.entity.UserEntity;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
@@ -29,7 +29,7 @@ public class Sale {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "videojuego_id", nullable = false)
-    private Videojuego videojuego;
+    private VideoGame videojuego;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "usuario_username", nullable = false)
