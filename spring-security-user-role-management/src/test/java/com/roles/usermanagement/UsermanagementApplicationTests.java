@@ -172,9 +172,7 @@ class UsermanagementApplicationTests {
 
         var paths = json.path("paths");
 
-
-
-        assertThat(paths.size()).isEqualTo(21);
+        assertThat(paths.size()).isEqualTo(22);
 
 
 
@@ -254,15 +252,11 @@ class UsermanagementApplicationTests {
 
 
 
-        assertThat(jdbc.queryForObject("select count(*) from app_permission", Integer.class)).isEqualTo(20);
-
-
+        assertThat(jdbc.queryForObject("select count(*) from app_permission", Integer.class)).isEqualTo(33);
 
         assertThat(jdbc.queryForObject("select count(*) from role_permission where role_name='ADMIN'", Integer.class))
 
-
-
-                .isEqualTo(20);
+                .isEqualTo(33);
 
 
 
@@ -322,11 +316,9 @@ class UsermanagementApplicationTests {
 
 
 
-        assertThat(jdbc.queryForObject("select count(*) from app_permission", Integer.class)).isEqualTo(20);
+        assertThat(jdbc.queryForObject("select count(*) from app_permission", Integer.class)).isEqualTo(33);
 
-
-
-        assertThat(jdbc.queryForObject("select count(*) from role_permission", Integer.class)).isEqualTo(21);
+        assertThat(jdbc.queryForObject("select count(*) from role_permission", Integer.class)).isEqualTo(34);
 
 
 
@@ -891,62 +883,57 @@ class UsermanagementApplicationTests {
     @Test
     void protectsBusinessModulesAndKeepsSalesAndStockConsistent() throws Exception {
         String admin=login("superadmin");
-        long customerId=0,productId=0;
+        long clientId=0,gameId=0;
         try {
-            assertThat(request("GET", "/api/products", null, null).statusCode()).isIn(401,403);
-            var customer=request("POST", "/api/customers", "{\"name\":\"Cliente prueba\",\"email\":\"client@test.local\",\"phone\":\"123\"}", admin);
-            assertThat(customer.statusCode()).isEqualTo(201);customerId=responseId(customer);
-            var product=request("POST", "/api/products", "{\"name\":\"Producto prueba\",\"sku\":\"TEST-SKU\",\"price\":12.50,\"stock\":5}", admin);
-            assertThat(product.statusCode()).isEqualTo(201);productId=responseId(product);
-            assertThat(request("POST", "/api/products", "{\"name\":\"X\",\"sku\":\"TEST-SKU\",\"price\":12.50,\"stock\":1}", admin).statusCode()).isEqualTo(409);
-            assertThat(request("POST", "/api/products", "{\"name\":\"X\",\"sku\":\"INVALID\",\"price\":-1,\"stock\":-2}", admin).statusCode()).isEqualTo(400);
-            assertThat(request("PUT", "/api/customers/"+customerId, "{\"name\":\"Actualizado\",\"email\":\"client@test.local\"}", admin).statusCode()).isEqualTo(200);
-            assertThat(request("GET", "/api/customers/"+customerId,null,admin).body()).contains("Actualizado");
-            assertThat(request("GET", "/api/products?page=0&size=10",null,admin).statusCode()).isEqualTo(200);
-            assertThat(request("GET", "/api/products?size=101",null,admin).statusCode()).isEqualTo(400);
+            assertThat(request("GET", "/api/videogames", null, null).statusCode()).isIn(401,403);
+            var client=request("POST", "/api/clients", "{\"nombre\":\"Cliente prueba\",\"correo\":\"client@test.local\",\"telefono\":\"123\",\"empresa\":\"Particular\"}", admin);
+            assertThat(client.statusCode()).isEqualTo(201);clientId=responseId(client);
+            var game=request("POST", "/api/videogames", "{\"titulo\":\"Juego prueba\",\"plataforma\":\"PC\",\"estado\":\"PLANEACION\",\"clienteId\":"+clientId+"}", admin);
+            assertThat(game.statusCode()).isEqualTo(201);gameId=responseId(game);
+            assertThat(request("POST", "/api/videogames", "{\"titulo\":\"\",\"plataforma\":\"PC\",\"estado\":\"PLANEACION\",\"clienteId\":"+clientId+"}", admin).statusCode()).isEqualTo(400);
+            assertThat(request("PUT", "/api/clients/"+clientId, "{\"nombre\":\"Actualizado\",\"correo\":\"client@test.local\",\"telefono\":\"123\",\"empresa\":\"Particular\"}", admin).statusCode()).isEqualTo(200);
+            assertThat(request("GET", "/api/clients/"+clientId,null,admin).body()).contains("Actualizado");
+            assertThat(request("GET", "/api/videogames?page=0&size=10",null,admin).statusCode()).isEqualTo(200);
+            assertThat(request("GET", "/api/videogames?size=101",null,admin).statusCode()).isEqualTo(400);
             assertThat(request("POST", "/api/user/add", "{\"username\":\"businessuser\",\"email\":\"business@test.local\",\"password\":\"secret\"}", admin).statusCode()).isEqualTo(200);
             String customerToken=login("businessuser");
             assertThat(request("GET", "/api/auth/me",null,customerToken).body()).contains("businessuser", "CUSTOMER", "effectivePermissions");
             assertThat(request("GET", "/api/auth/me",null,null).statusCode()).isIn(401,403);
-            assertThat(request("GET", "/api/products",null,customerToken).statusCode()).isEqualTo(403);
-            assertThat(request("POST", "/api/user/assignPermission", "{\"username\":\"businessuser\",\"permission\":\"PRODUCT_READ\"}",admin).statusCode()).isEqualTo(200);
-            assertThat(request("GET", "/api/products",null,customerToken).statusCode()).isEqualTo(200);
-            assertThat(request("GET", "/api/customers",null,customerToken).statusCode()).isEqualTo(403);
-            assertThat(request("POST", "/api/products", "{\"name\":\"X\",\"sku\":\"DENIED\",\"price\":1,\"stock\":1}",customerToken).statusCode()).isEqualTo(403);
+            assertThat(request("GET", "/api/videogames",null,customerToken).statusCode()).isEqualTo(403);
+            assertThat(request("POST", "/api/user/assignPermission", "{\"username\":\"businessuser\",\"permission\":\"VIDEOGAME_READ\"}",admin).statusCode()).isEqualTo(200);
+            assertThat(request("GET", "/api/videogames",null,customerToken).statusCode()).isEqualTo(200);
+            assertThat(request("GET", "/api/clients",null,customerToken).statusCode()).isEqualTo(403);
+            assertThat(request("POST", "/api/videogames", "{\"titulo\":\"X\",\"plataforma\":\"PC\",\"estado\":\"BETA\",\"clienteId\":"+clientId+"}",customerToken).statusCode()).isEqualTo(403);
             jdbc.update("update \"user\" set disabled=true where username='businessuser'");
-            assertThat(request("GET", "/api/products",null,customerToken).statusCode()).isIn(401,403);
+            assertThat(request("GET", "/api/videogames",null,customerToken).statusCode()).isIn(401,403);
             jdbc.update("update \"user\" set disabled=false,locked=true where username='businessuser'");
-            assertThat(request("GET", "/api/products",null,customerToken).statusCode()).isIn(401,403);
+            assertThat(request("GET", "/api/videogames",null,customerToken).statusCode()).isIn(401,403);
             jdbc.update("update \"user\" set locked=false where username='businessuser'");
-            String saleBody="{\"customerId\":"+customerId+",\"items\":[{\"productId\":"+productId+",\"quantity\":4}]}";
+            String saleBody="{\"concepto\":\"Venta de licencia\",\"monto\":50.00,\"videojuego\":"+gameId+"}";
             assertThat(request("POST", "/api/sales",saleBody,customerToken).statusCode()).isEqualTo(403);
-            try(var executor=java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
-                var a=executor.submit(()->request("POST", "/api/sales",saleBody,admin));
-                var b=executor.submit(()->request("POST", "/api/sales",saleBody,admin));
-                var first=a.get();var second=b.get();
-                assertThat(java.util.List.of(first.statusCode(),second.statusCode())).containsExactlyInAnyOrder(201,409);
-                var success=first.statusCode()==201?first:second;long saleId=responseId(success);
-                assertThat(success.body()).contains("50.00", "superadmin", "Actualizado");
-                assertThat(jdbc.queryForObject("select stock from business_product where id=?",Integer.class,productId)).isEqualTo(1);
-                assertThat(request("PUT", "/api/products/"+productId, "{\"name\":\"Precio nuevo\",\"sku\":\"TEST-SKU\",\"price\":20,\"stock\":1}", admin).statusCode()).isEqualTo(200);
-                assertThat(request("GET", "/api/sales/"+saleId,null,admin).body()).contains("12.50", "Producto prueba");
-                for(int i=0;i<2;i++)assertThat(request("POST", "/api/sales/"+saleId+"/cancel",null,admin).statusCode()).isEqualTo(200);
-                assertThat(jdbc.queryForObject("select stock from business_product where id=?",Integer.class,productId)).isEqualTo(5);
-                assertThat(request("GET", "/api/sales",null,admin).statusCode()).isEqualTo(200);
-            }
-            String rollback="{\"customerId\":"+customerId+",\"items\":[{\"productId\":"+productId+",\"quantity\":1},{\"productId\":9223372036854775807,\"quantity\":1}]}";
-            assertThat(request("POST", "/api/sales",rollback,admin).statusCode()).isEqualTo(404);
-            assertThat(jdbc.queryForObject("select stock from business_product where id=?",Integer.class,productId)).isEqualTo(5);
-            assertThat(request("POST", "/api/sales",saleBody.replace("\"quantity\":4","\"quantity\":0"),admin).statusCode()).isEqualTo(400);
-            assertThat(request("DELETE", "/api/products/"+productId,null,admin).statusCode()).isEqualTo(204);
-            assertThat(request("POST", "/api/sales",saleBody,admin).statusCode()).isEqualTo(409);
-            assertThat(request("DELETE", "/api/customers/"+customerId,null,admin).statusCode()).isEqualTo(204);
-            assertThat(request("POST", "/api/sales",saleBody,admin).statusCode()).isEqualTo(409);
+            var saleResp = request("POST", "/api/sales",saleBody,admin);
+            assertThat(saleResp.statusCode()).isEqualTo(201);
+            long saleId=responseId(saleResp);
+            assertThat(saleResp.body()).contains("50.00", "superadmin", "Venta de licencia");
+            assertThat(request("GET", "/api/sales/"+saleId,null,admin).body()).contains("50.00", "Juego prueba");
+            assertThat(request("DELETE", "/api/sales/"+saleId,null,admin).statusCode()).isEqualTo(204);
+            assertThat(request("GET", "/api/sales",null,admin).statusCode()).isEqualTo(200);
+
+            String purchaseBody="{\"descripcion\":\"Servidor AWS\",\"costo\":25.00,\"proveedor\":\"Amazon\",\"videojuego\":"+gameId+"}";
+            var purchaseResp = request("POST", "/api/purchases",purchaseBody,admin);
+            assertThat(purchaseResp.statusCode()).isEqualTo(201);
+            long purchaseId=responseId(purchaseResp);
+            assertThat(purchaseResp.body()).contains("25.00", "superadmin", "Amazon");
+            assertThat(request("DELETE", "/api/purchases/"+purchaseId,null,admin).statusCode()).isEqualTo(204);
+            assertThat(request("GET", "/api/purchases",null,admin).statusCode()).isEqualTo(200);
+
+            assertThat(request("DELETE", "/api/videogames/"+gameId,null,admin).statusCode()).isEqualTo(204);
+            assertThat(request("DELETE", "/api/clients/"+clientId,null,admin).statusCode()).isEqualTo(204);
         } finally {
-            jdbc.update("delete from business_sale_item where sale_id in (select id from business_sale where customer_id=?)",customerId);
-            jdbc.update("delete from business_sale where customer_id=?",customerId);
-            jdbc.update("delete from business_product where id=?",productId);
-            jdbc.update("delete from business_customer where id=?",customerId);
+            jdbc.update("delete from ventas");
+            jdbc.update("delete from compras");
+            jdbc.update("delete from videojuegos");
+            jdbc.update("delete from clientes");
             jdbc.update("delete from user_permission where username='businessuser'");
             jdbc.update("delete from user_role where username='businessuser'");
             jdbc.update("delete from \"user\" where username='businessuser'");

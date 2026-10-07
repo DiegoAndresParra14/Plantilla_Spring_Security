@@ -30,12 +30,13 @@ const state = {
 
 const sections = {
     home: { title: 'Inicio', icon: '⌂' },
-    customers: { title: 'Clientes', icon: '♙', prefix: 'CUSTOMER', endpoint: '/api/customers' },
-    products: { title: 'Productos', icon: '▦', prefix: 'PRODUCT', endpoint: '/api/products' },
+    clients: { title: 'Clientes', icon: '♙', prefix: 'CLIENT', endpoint: '/api/clients' },
+    videogames: { title: 'Videojuegos', icon: '🎮', prefix: 'VIDEOGAME', endpoint: '/api/videogames' },
+    purchases: { title: 'Compras', icon: '↘', prefix: 'PURCHASE', endpoint: '/api/purchases' },
     sales: { title: 'Ventas', icon: '↗', prefix: 'SALE', endpoint: '/api/sales' },
     users: { title: 'Usuarios', icon: '♧' },
     roles: { title: 'Roles', icon: '◈' },
-    permissions: { title: 'Permisos', icon: '⚿' }
+    permissions: { title: 'Permisos', icon: '♚' }
 };
 
 const can = p => state.me?.effectivePermissions?.includes(p);
@@ -48,6 +49,10 @@ function visible(view) {
     }
     if (view === 'roles') return can('ROLE_MANAGE');
     if (view === 'permissions') return can('PERMISSION_MANAGE');
+
+    if (view === 'videogames') {
+        return any(['VIDEOGAME_READ', 'VIDEOGAME_CREATE', 'VIDEOGAME_UPDATE', 'VIDEOGAME_DELETE', 'PRODUCT_READ', 'PRODUCT_CREATE', 'PRODUCT_UPDATE', 'PRODUCT_DELETE']);
+    }
 
     const p = sections[view].prefix;
     return any([p + '_READ', p + '_CREATE', p + '_UPDATE', p + '_DELETE', p + '_CANCEL']);
@@ -243,18 +248,24 @@ async function render() {
     let rows = [];
     let read = false;
 
-    if (['customers', 'products', 'sales'].includes(view)) {
-        read = can(conf.prefix + '_READ');
+    if (['clients', 'videogames', 'purchases', 'sales'].includes(view)) {
+        read = view === 'videogames' ? (can('VIDEOGAME_READ') || can('PRODUCT_READ')) : can(conf.prefix + '_READ');
 
-        if (can(conf.prefix + '_CREATE')) {
-            actions = button('create', '＋ ' + (view === 'sales' ? 'Nueva venta' : view === 'products' ? 'Nuevo producto' : 'Nuevo cliente')) + actions;
+        const canCreate = view === 'videogames' ? (can('VIDEOGAME_CREATE') || can('PRODUCT_CREATE')) : can(conf.prefix + '_CREATE');
+        if (canCreate) {
+            actions = button('create', '＋ ' + (view === 'sales' ? 'Nueva venta' : view === 'purchases' ? 'Nueva compra' : view === 'videogames' ? 'Nuevo videojuego' : 'Nuevo cliente')) + actions;
         }
-        if (!read && view !== 'sales' && can(conf.prefix + '_UPDATE')) {
+
+        const canUpdate = view === 'videogames' ? (can('VIDEOGAME_UPDATE') || can('PRODUCT_UPDATE')) : can(conf.prefix + '_UPDATE');
+        if (!read && ['clients', 'videogames'].includes(view) && canUpdate) {
             actions += button('edit-business-id', 'Editar por ID', '', 'secondary');
         }
-        if (!read && view !== 'sales' && can(conf.prefix + '_DELETE')) {
-            actions += button('deactivate-business-id', 'Desactivar por ID', '', 'secondary');
+
+        const canDelete = view === 'videogames' ? (can('VIDEOGAME_DELETE') || can('PRODUCT_DELETE')) : can(conf.prefix + '_DELETE');
+        if (!read && ['clients', 'videogames'].includes(view) && canDelete) {
+            actions += button('deactivate-business-id', 'Eliminar por ID', '', 'secondary');
         }
+
         if (!read && view === 'sales' && can('SALE_CANCEL')) {
             actions += button('cancel-sale-id', 'Anular por ID', '', 'secondary');
         }
@@ -290,9 +301,10 @@ async function render() {
     state.rows = rows;
 
     const intro = {
-        customers: 'Organiza tus relaciones comerciales.',
-        products: 'Tu catálogo, precios y existencias al día.',
-        sales: 'Cada operación, con su detalle e historial.',
+        clients: 'Organiza tus relaciones comerciales y clientes.',
+        videogames: 'Tu catálogo de juegos y sus estados de desarrollo.',
+        purchases: 'Registro de egresos y costos de desarrollo.',
+        sales: 'Cada ingreso registrado con su detalle e historial.',
         users: 'Cuentas, estados y accesos de tu equipo.',
         roles: 'Un rol por usuario. Capacidades compartidas por equipo.',
         permissions: 'El catálogo de capacidades de tu aplicación.'
@@ -310,37 +322,50 @@ function table(view, rows) {
     let cells;
     const action = (name, label, i, cls = 'link-button') => button(name, label, `data-index="${i}"`, cls);
 
-    if (view === 'customers') {
-        headers = ['Cliente', 'Contacto', 'Estado', 'Acciones'];
+    if (view === 'clients') {
+        headers = ['Cliente', 'Contacto', 'Empresa', 'Estado', 'Acciones'];
         cells = (r, i) => [
-            `<span class="cell-title">${esc(r.name)}</span><small class="cell-sub">Cliente #${r.id}</small>`,
-            `${esc(r.email)}<small class="cell-sub">${esc(r.phone || 'Sin teléfono')}</small>`,
-            badge(r.active),
-            (r.active && can('CUSTOMER_UPDATE') ? action('edit', 'Editar', i) : '') +
-            (r.active && can('CUSTOMER_DELETE') ? action('deactivate', 'Desactivar', i) : '')
+            `<span class="cell-title">${esc(r.nombre)}</span><small class="cell-sub">Cliente #${r.id}</small>`,
+            `${esc(r.correo)}<small class="cell-sub">${esc(r.telefono || 'Sin teléfono')}</small>`,
+            esc(r.empresa || 'Particular'),
+            badge(r.activo),
+            (r.activo && can('CLIENT_UPDATE') ? action('edit', 'Editar', i) : '') +
+            (r.activo && can('CLIENT_DELETE') ? action('deactivate', 'Desactivar', i) : '')
         ];
     }
-    if (view === 'products') {
-        headers = ['Producto', 'Precio', 'Existencias', 'Estado', 'Acciones'];
+    if (view === 'videogames') {
+        headers = ['Videojuego', 'Plataforma', 'Estado', 'Cliente', 'Acciones'];
         cells = (r, i) => [
-            `<span class="cell-title">${esc(r.name)}</span><small class="cell-sub">${esc(r.sku)}</small>`,
-            money(r.price),
-            r.stock,
-            badge(r.active),
-            (r.active && can('PRODUCT_UPDATE') ? action('edit', 'Editar', i) : '') +
-            (r.active && can('PRODUCT_DELETE') ? action('deactivate', 'Desactivar', i) : '')
+            `<span class="cell-title">${esc(r.titulo)}</span><small class="cell-sub">Juego #${r.id}</small>`,
+            `<span class="badge">${esc(r.plataforma)}</span>`,
+            `<span class="badge">${esc(r.estado)}</span>`,
+            esc(r.clienteNombre || 'Sin cliente asignado'),
+            ((can('VIDEOGAME_UPDATE') || can('PRODUCT_UPDATE')) ? action('edit', 'Editar', i) : '') +
+            ((can('VIDEOGAME_DELETE') || can('PRODUCT_DELETE')) ? action('deactivate', 'Eliminar', i) : '')
+        ];
+    }
+    if (view === 'purchases') {
+        headers = ['Compra', 'Videojuego', 'Proveedor', 'Descripción', 'Costo', 'Acciones'];
+        cells = (r, i) => [
+            `<span class="cell-title">#${r.id}</span><small class="cell-sub">${esc(r.usuarioUsername || '')} · ${date(r.fecha)}</small>`,
+            esc(r.videojuegoTitulo),
+            esc(r.proveedor),
+            esc(r.descripcion),
+            money(r.costo),
+            action('purchase-detail', 'Ver detalle', i) +
+            (can('PURCHASE_UPDATE') ? action('edit', 'Editar', i) : '') +
+            (can('PURCHASE_DELETE') ? action('delete-purchase', 'Eliminar', i) : '')
         ];
     }
     if (view === 'sales') {
-        headers = ['Venta', 'Cliente', 'Fecha', 'Total', 'Estado', 'Acciones'];
+        headers = ['Venta', 'Videojuego', 'Concepto', 'Monto', 'Acciones'];
         cells = (r, i) => [
-            `<span class="cell-title">#${r.id}</span><small class="cell-sub">${esc(r.createdBy)}</small>`,
-            esc(r.customerName),
-            date(r.createdAt),
-            money(r.total),
-            `<span class="badge ${r.cancelled ? 'off' : ''}">${r.cancelled ? 'Anulada' : 'Registrada'}</span>`,
+            `<span class="cell-title">#${r.id}</span><small class="cell-sub">${esc(r.usuarioUsername || '')} · ${date(r.fecha)}</small>`,
+            esc(r.videojuegoTitulo),
+            esc(r.concepto),
+            money(r.monto),
             action('sale-detail', 'Ver detalle', i) +
-            (!r.cancelled && can('SALE_CANCEL') ? action('cancel-sale', 'Anular', i) : '')
+            (can('SALE_CANCEL') ? action('cancel-sale', 'Anular', i) : '')
         ];
     }
     if (view === 'users') {
@@ -372,7 +397,7 @@ function table(view, rows) {
         ];
     }
 
-    const paging = ['customers', 'products', 'sales'].includes(view);
+    const paging = ['clients', 'videogames', 'purchases', 'sales'].includes(view);
 
     return `
         <section class="panel">
@@ -403,7 +428,7 @@ function table(view, rows) {
             </div>
             ${paging ? `
                 <div class="pagination">
-                    <span>Página ${state.page + 1} de ${Math.max(state.pages, 1)} ·${state.total} registros</span>
+                    <span>Página ${state.page + 1} de ${Math.max(state.pages, 1)} · ${state.total} registros</span>
                     <div>
                         <button data-action="previous" ${state.page === 0 ? 'disabled' : ''}>← Anterior</button>
                         <button data-action="next" ${state.page + 1 >= state.pages ? 'disabled' : ''}>Siguiente →</button>
@@ -416,12 +441,18 @@ function table(view, rows) {
 
 async function dashboard() {
     const first = state.me.username;
-    const metrics = await Promise.all(['customers', 'products', 'sales'].map(async key => ({
-        key,
-        total: can(sections[key].prefix + '_READ')
-            ? (await api(sections[key].endpoint + '?size=1')).totalElements
-            : null
-    })));
+    const metrics = await Promise.all(['clients', 'videogames', 'purchases', 'sales'].map(async key => {
+        let readP = false;
+        if (key === 'videogames') readP = can('VIDEOGAME_READ') || can('PRODUCT_READ');
+        else readP = can(sections[key].prefix + '_READ');
+
+        return {
+            key,
+            total: readP
+                ? (await api(sections[key].endpoint + '?size=1')).totalElements
+                : null
+        };
+    }));
 
     const links = Object.entries(sections).filter(([key]) => key !== 'home' && visible(key));
 
@@ -459,7 +490,7 @@ async function dashboard() {
             <div class="quick-links">
                 ${links.map(([key, v]) => `
                     <button class="quick-link" data-action="go" data-view="${key}">
-                        <span>${v.icon} &nbsp; ${v.title}<small>Ir a${v.title.toLowerCase()}</small></span>
+                        <span>${v.icon} &nbsp; ${v.title}<small>Ir a ${v.title.toLowerCase()}</small></span>
                         <span>→</span>
                     </button>
                 `).join('') || '<div class="empty">Tu cuenta todavía no tiene permisos para estos módulos.</div>'}
@@ -559,32 +590,101 @@ async function picker(name, label, kind, current = '') {
         `;
     }
 
-    return field(label, name, current || (kind === 'role' ? 'CUSTOMER' : ''), 'text', 'required maxlength="50"');
+    return field(label, name, current || (kind === 'role' ? 'CLIENT_READ' : ''), 'text', 'required maxlength="50"');
 }
 
 async function entityForm(row, askId = false) {
     const view = state.view;
-    const edit = !!row;
+    const edit = !!row && Object.keys(row).length > 0;
     row = row || {};
     let body = '';
 
-    if (view === 'customers') {
-        body = field('Nombre', 'name', row.name, 'text', 'required maxlength="150"') + `
+    if (view === 'clients') {
+        body = field('Nombre', 'nombre', row.nombre, 'text', 'required maxlength="150"') + `
             <div class="fields">
-                ${field('Correo', 'email', row.email, 'email', 'required maxlength="200"')}
-                ${field('Teléfono', 'phone', row.phone, 'tel', 'maxlength="30"')}
+                ${field('Correo', 'correo', row.correo, 'email', 'required')}
+                ${field('Teléfono', 'telefono', row.telefono, 'tel', 'maxlength="30"')}
             </div>
+            ${field('Empresa', 'empresa', row.empresa, 'text', 'maxlength="150"')}
         `;
     }
 
-    if (view === 'products') {
-        body = field('Nombre', 'name', row.name, 'text', 'required maxlength="150"') +
-            field('Código SKU', 'sku', row.sku, 'text', 'required maxlength="50"') + `
+    if (view === 'videogames') {
+        const clients = can('CLIENT_READ') ? (await allPages('/api/clients')).filter(r => r.activo) : [];
+        const clientSelect = clients.length
+            ? `
+                <label>
+                    Cliente
+                    <select name="clienteId" required>
+                        <option value="">Selecciona un cliente</option>
+                        ${clients.map(c => `<option value="${c.id}" ${row.clienteId === c.id ? 'selected' : ''}>${esc(c.nombre)} · #${c.id}</option>`).join('')}
+                    </select>
+                </label>
+            `
+            : field('Identificador del cliente', 'clienteId', row.clienteId, 'number', 'required min="1" step="1"');
+
+        body = field('Título', 'titulo', row.titulo, 'text', 'required maxlength="150"') + `
             <div class="fields">
-                ${field('Precio', 'price', row.price ?? '', 'number', 'required min="0.01" step="0.01"')}
-                ${field('Existencias', 'stock', row.stock ?? 0, 'number', 'required min="0" max="2147483647" step="1"')}
+                <label>
+                    Plataforma
+                    <select name="plataforma" required>
+                        <option value="PC" ${row.plataforma === 'PC' ? 'selected' : ''}>PC</option>
+                        <option value="CONSOLA" ${row.plataforma === 'CONSOLA' ? 'selected' : ''}>Consola</option>
+                        <option value="MOVIL" ${row.plataforma === 'MOVIL' ? 'selected' : ''}>Móvil</option>
+                        <option value="WEB" ${row.plataforma === 'WEB' ? 'selected' : ''}>Web</option>
+                    </select>
+                </label>
+                <label>
+                    Estado
+                    <select name="estado" required>
+                        <option value="PLANEACION" ${row.estado === 'PLANEACION' ? 'selected' : ''}>Planeación</option>
+                        <option value="EN_DESARROLLO" ${row.estado === 'EN_DESARROLLO' ? 'selected' : ''}>En Desarrollo</option>
+                        <option value="BETA" ${row.estado === 'BETA' ? 'selected' : ''}>Beta</option>
+                        <option value="FINALIZADO" ${row.estado === 'FINALIZADO' ? 'selected' : ''}>Finalizado</option>
+                    </select>
+                </label>
             </div>
+            ${clientSelect}
         `;
+    }
+
+    if (view === 'purchases') {
+        const games = (can('VIDEOGAME_READ') || can('PRODUCT_READ')) ? (await allPages('/api/videogames')) : [];
+        const gameSelect = games.length
+            ? `
+                <label>
+                    Videojuego
+                    <select name="videojuego" required>
+                        <option value="">Selecciona un videojuego</option>
+                        ${games.map(g => `<option value="${g.id}" ${row.videojuego === g.id ? 'selected' : ''}>${esc(g.titulo)} · #${g.id}</option>`).join('')}
+                    </select>
+                </label>
+            `
+            : field('ID del videojuego', 'videojuego', row.videojuego, 'number', 'required min="1" step="1"');
+
+        body = gameSelect +
+            field('Descripción', 'descripcion', row.descripcion, 'text', 'required') +
+            field('Proveedor', 'proveedor', row.proveedor, 'text', 'required') +
+            field('Costo', 'costo', row.costo ?? '', 'number', 'required min="0.01" step="0.01"');
+    }
+
+    if (view === 'sales') {
+        const games = (can('VIDEOGAME_READ') || can('PRODUCT_READ')) ? (await allPages('/api/videogames')) : [];
+        const gameSelect = games.length
+            ? `
+                <label>
+                    Videojuego
+                    <select name="videojuego" required>
+                        <option value="">Selecciona un videojuego</option>
+                        ${games.map(g => `<option value="${g.id}" ${row.videojuego === g.id ? 'selected' : ''}>${esc(g.titulo)} · #${g.id}</option>`).join('')}
+                    </select>
+                </label>
+            `
+            : field('ID del videojuego', 'videojuego', row.videojuego, 'number', 'required min="1" step="1"');
+
+        body = gameSelect +
+            field('Concepto', 'concepto', row.concepto, 'text', 'required') +
+            field('Monto', 'monto', row.monto ?? '', 'number', 'required min="0.01" step="0.01"');
     }
 
     if (view === 'users') {
@@ -630,9 +730,12 @@ async function entityForm(row, askId = false) {
         body = field('Identificador del registro', 'recordId', '', 'number', 'required min="1" step="1"') + body;
     }
 
-    modal((edit ? 'Editar ' : 'Nuevo ') + ({
-        customers: 'cliente',
-        products: 'producto',
+    const isFeminine = ['purchases', 'sales'].includes(view);
+    modal((edit ? 'Editar ' : (isFeminine ? 'Nueva ' : 'Nuevo ')) + ({
+        clients: 'cliente',
+        videogames: 'videojuego',
+        purchases: 'compra',
+        sales: 'venta',
         users: 'usuario',
         roles: 'rol',
         permissions: 'permiso'
@@ -641,9 +744,14 @@ async function entityForm(row, askId = false) {
         const recordId = askId ? data.recordId : row.id;
         delete data.recordId;
 
-        if (view === 'products') {
-            data.price = Number(data.price);
-            data.stock = Number(data.stock);
+
+        if (['videogames', 'purchases', 'sales'].includes(view)) {
+            if (data.clienteId) data.clienteId = Number(data.clienteId);
+            else delete data.clienteId;
+
+            if (data.videojuego) data.videojuego = Number(data.videojuego);
+            if (data.costo) data.costo = Number(data.costo);
+            if (data.monto) data.monto = Number(data.monto);
         }
         if (view === 'users') {
             data.locked = f.has('locked');
@@ -753,93 +861,22 @@ async function allPages(endpoint) {
     return out;
 }
 
-async function saleForm() {
-    const customers = can('CUSTOMER_READ') ? (await allPages('/api/customers')).filter(r => r.active) : [];
-    const products = can('PRODUCT_READ') ? (await allPages('/api/products')).filter(r => r.active) : [];
-
-    const customer = customers.length
-        ? `
-            <label>
-                Cliente
-                <select name="customerId" required>
-                    <option value="">Selecciona un cliente</option>
-                    ${customers.map(c => `<option value="${c.id}">${esc(c.name)} · #${c.id}</option>`).join('')}
-                </select>
-            </label>
-        `
-        : field('Identificador del cliente', 'customerId', '', 'number', 'required min="1" step="1"');
-
+async function purchaseDetails(row) {
+    const d = await api('/api/purchases/' + row.id);
     modal(
-        'Nueva venta',
-        customer +
-        '<p class="note">El servidor calcula los precios y valida el inventario. Los importes mostrados son una estimación.</p>' +
-        '<label>Productos de la venta</label>' +
-        '<div id="sale-lines"></div>' +
-        button('add-line', '＋ Agregar producto', '', 'secondary') +
-        '<div class="totals"><span>Total estimado</span><b id="sale-total">—</b></div>',
-        async f => {
-            const items = [...$('#sale-lines').children].map(line => ({
-                productId: Number(line.querySelector('[name=productId]').value),
-                quantity: Number(line.querySelector('[name=quantity]').value)
-            }));
-
-            if (!items.length) throw new Error('Agrega al menos un producto.');
-            if (new Set(items.map(i => i.productId)).size !== items.length) {
-                throw new Error('No repitas productos: consolida su cantidad.');
-            }
-
-            await api('/api/sales', {
-                method: 'POST',
-                body: {
-                    customerId: Number(f.get('customerId')),
-                    items
-                }
-            });
-        },
-        'Registrar venta'
+        'Compra #' + d.id,
+        `
+            <div class="info-row"><span>Videojuego</span><b>${esc(d.videojuegoTitulo)}</b></div>
+            <div class="info-row"><span>Proveedor</span><b>${esc(d.proveedor)}</b></div>
+            <div class="info-row"><span>Descripción</span><b>${esc(d.descripcion)}</b></div>
+            <div class="info-row"><span>Registrada por</span><b>${esc(d.usuarioUsername)}</b></div>
+            <div class="info-row"><span>Fecha</span><b>${esc(date(d.fecha))}</b></div>
+            <div class="totals">
+                <span>Costo registrado</span><b>${money(d.costo)}</b>
+            </div>
+        `,
+        null
     );
-
-    state.cache.saleProducts = products;
-    addSaleLine();
-}
-
-function addSaleLine() {
-    const ps = state.cache.saleProducts || [];
-    const line = document.createElement('div');
-    line.className = 'sale-line';
-
-    line.innerHTML = (
-        ps.length
-            ? `
-                <select name="productId" aria-label="Producto" required>
-                    <option value="">Selecciona un producto</option>
-                    ${ps.map(p => `<option value="${p.id}">${esc(p.name)} · ${money(p.price)} · stock ${p.stock}</option>`).join('')}
-                </select>
-            `
-            : '<input name="productId" aria-label="ID de producto" placeholder="ID de producto" type="number" required min="1" step="1">'
-    ) +
-    '<input name="quantity" aria-label="Cantidad" type="number" value="1" min="1" max="1000000" step="1" required>' +
-    button('remove-line', '×', '', 'icon-button');
-
-    $('#sale-lines').append(line);
-    saleEstimate();
-}
-
-function saleEstimate() {
-    if (!$('#sale-total')) return;
-    let total = 0;
-    let unknown = false;
-
-    for (const line of $('#sale-lines').children) {
-        const p = (state.cache.saleProducts || []).find(p => p.id === Number(line.querySelector('[name=productId]').value));
-        if (!p) {
-            unknown = true;
-            continue;
-        }
-        total += Math.round(Number(p.price) * 100) * Number(line.querySelector('[name=quantity]').value);
-    }
-
-    $('#sale-total').textContent = unknown ? 'Por calcular' : money(total/100);
 }
 
 async function saleDetails(row) {
@@ -847,35 +884,12 @@ async function saleDetails(row) {
     modal(
         'Venta #' + d.id,
         `
-            <div class="info-row"><span>Cliente</span><b>${esc(d.customerName)}</b></div>
-            <div class="info-row"><span>Registrada por</span><b>${esc(d.createdBy)}</b></div>
-            <div class="info-row"><span>Fecha</span><b>${esc(date(d.createdAt))}</b></div>
-            <div class="info-row"><span>Estado</span><b>${d.cancelled ? 'Anulada' : 'Registrada'}</b></div>
-            ${d.cancelled ? `<div class="info-row"><span>Anulación</span><b>${esc(d.cancelledBy)} ·${esc(date(d.cancelledAt))}</b></div>` : ''}
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Producto</th>
-                            <th>Cantidad</th>
-                            <th>Precio</th>
-                            <th>Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${d.items.map(i => `
-                            <tr>
-                                <td>${esc(i.productName)}</td>
-                                <td>${i.quantity}</td>
-                                <td>${money(i.unitPrice)}</td>
-                                <td>${money(i.subtotal)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
+            <div class="info-row"><span>Videojuego</span><b>${esc(d.videojuegoTitulo)}</b></div>
+            <div class="info-row"><span>Concepto</span><b>${esc(d.concepto)}</b></div>
+            <div class="info-row"><span>Registrada por</span><b>${esc(d.usuarioUsername)}</b></div>
+            <div class="info-row"><span>Fecha</span><b>${esc(date(d.fecha))}</b></div>
             <div class="totals">
-                <span>Total registrado</span><b>${money(d.total)}</b>
+                <span>Monto registrado</span><b>${money(d.monto)}</b>
             </div>
         `,
         null
@@ -900,7 +914,7 @@ async function handle(action, element) {
             return navigate(state.view, state.page + 1);
 
         case 'create':
-            return state.view === 'sales' ? saleForm() : entityForm();
+            return entityForm();
 
         case 'edit':
             return entityForm(row);
@@ -921,9 +935,8 @@ async function handle(action, element) {
         case 'cancel-sale-id':
             modal(
                 'Anular venta',
-                field('Identificador de venta', 'id', '', 'number', 'required min="1" step="1"') +
-                '<p class="note">Anular repone las existencias y conserva el detalle original.</p>',
-                f => api('/api/sales/' + path(f.get('id')) + '/cancel', { method: 'POST' }),
+                field('Identificador de venta', 'id', '', 'number', 'required min="1" step="1"'),
+                f => api('/api/sales/' + path(f.get('id')), { method: 'DELETE' }),
                 'Anular venta'
             );
             return;
@@ -983,8 +996,8 @@ async function handle(action, element) {
 
         case 'deactivate':
             return confirmAction(
-                'Desactivar registro',
-                `¿Desactivar ${row.name}? Las ventas históricas se conservarán.`,
+                'Eliminar / Desactivar registro',
+                `¿Desactivar/Eliminar el registro seleccionado?`,
                 () => api(sections[state.view].endpoint + '/' + row.id, { method: 'DELETE' })
             );
 
@@ -1010,22 +1023,22 @@ async function handle(action, element) {
         case 'cancel-sale':
             return confirmAction(
                 'Anular venta',
-                `¿Anular la venta #${row.id}? Sus existencias regresarán al inventario.`,
-                () => api('/api/sales/' + row.id + '/cancel', { method: 'POST' })
+                `¿Anular la venta #${row.id}?`,
+                () => api('/api/sales/' + row.id, { method: 'DELETE' })
+            );
+
+        case 'delete-purchase':
+            return confirmAction(
+                'Eliminar compra',
+                `¿Eliminar la compra #${row.id}?`,
+                () => api('/api/purchases/' + row.id, { method: 'DELETE' })
             );
 
         case 'sale-detail':
             return saleDetails(row);
 
-        case 'add-line':
-            if ($('#sale-lines').children.length >= 100) {
-                throw new Error('Máximo 100 productos por venta.');
-            }
-            return addSaleLine();
-
-        case 'remove-line':
-            element.closest('.sale-line').remove();
-            return saleEstimate();
+        case 'purchase-detail':
+            return purchaseDetails(row);
 
         case 'revoke-user-permission':
             return confirmAction(
@@ -1052,7 +1065,6 @@ async function onAction(e) {
 
 $('#content').addEventListener('click', onAction);
 $('#modal-body').addEventListener('click', onAction);
-$('#modal-body').addEventListener('input', saleEstimate);
 
 $('#content').addEventListener('input', e => {
     if (e.target.id !== 'filter') return;

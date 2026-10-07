@@ -1,5 +1,5 @@
 package com.roles.usermanagement.modules.sale;
-import com.roles.usermanagement.modules.customer.Customer;
+import com.roles.usermanagement.modules.client.Client;
 import com.roles.usermanagement.modules.videogame.VideoGame;
 import com.roles.usermanagement.persistance.crud.UserCrudRepository;
 import com.roles.usermanagement.persistance.entity.UserEntity;
@@ -49,9 +49,9 @@ public class SaleService {
  }
 
  private SaleResponse dto(Sale e){
-  VideoGame v=e.getVideojuego(); Customer c=v.getCliente();
+  VideoGame v=e.getVideojuego(); Client c=v.getCliente();
   return new SaleResponse(e.getId(),e.getFecha(),e.getConcepto(),e.getMonto(),
-          v.getId(),v.getTitulo(),c.getId(),c.getName(),e.getUsuario().getUsername());
+          v.getId(),v.getTitulo(),c.getId(),c.getNombre(),e.getUsuario().getUsername());
  }
 
  @Transactional(readOnly=true)

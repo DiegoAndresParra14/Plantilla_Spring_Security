@@ -1,6 +1,6 @@
 package com.roles.usermanagement.modules.videogame;
 
-import com.roles.usermanagement.modules.customer.Customer;
+import com.roles.usermanagement.modules.client.Client;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -28,5 +28,5 @@ public class VideoGame {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "cliente_id", nullable = false)
-    private Customer cliente;
+    private Client cliente;
 }

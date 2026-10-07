@@ -8,32 +8,40 @@ import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
 
+// Entidad de compra.
 @Entity
 @Table(name = "compras")
 @Getter
 @Setter
 public class Purchase {
 
+    // ID de compra.
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Fecha de registro.
     @Column(nullable = false)
     private LocalDateTime fecha = LocalDateTime.now();
 
+    // Concepto del gasto.
     @Column(nullable = false, length = 255)
     private String descripcion;
 
+    // Monto del gasto.
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal costo;
 
+    // Vendedor del insumo.
     @Column(nullable = false, length = 150)
     private String proveedor;
 
+    // Juego asociado.
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "videojuego_id", nullable = false)
     private VideoGame videojuego;
 
+    // Empleado que registró.
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "usuario_username", nullable = false)
     private UserEntity usuario;

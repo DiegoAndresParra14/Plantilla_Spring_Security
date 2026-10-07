@@ -17,29 +17,29 @@ public class VideoGameController {
 
     @Operation(summary="Listar videojuegos",description="Paginación: page desde 0; size entre 1 y 100. Filtro opcional por cliente.")
     @GetMapping
-    @PreAuthorize("hasAuthority('PRODUCT_READ')")
+    @PreAuthorize("hasAnyAuthority('VIDEOGAME_READ', 'PRODUCT_READ')")
     public Page<VideoGameResponse> all(@RequestParam(defaultValue="0") int page, @RequestParam(defaultValue="20") int size, @RequestParam(required=false) Long clienteId){
         return service.all(page, size, clienteId);
     }
 
     @Operation(summary="Consultar detalle de videojuego")
-    @GetMapping("/{id}") @PreAuthorize("hasAuthority('PRODUCT_READ')")
+    @GetMapping("/{id}") @PreAuthorize("hasAnyAuthority('VIDEOGAME_READ', 'PRODUCT_READ')")
     public VideoGameResponse get(@PathVariable Long id){return service.get(id);}
 
     @Operation(summary="Registrar videojuego")
-    @PostMapping @PreAuthorize("hasAuthority('PRODUCT_CREATE')")
+    @PostMapping @PreAuthorize("hasAnyAuthority('VIDEOGAME_CREATE', 'PRODUCT_CREATE')")
     public ResponseEntity<VideoGameResponse> create(@Valid @RequestBody VideoGameRequest dto){
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(dto));
     }
 
     @Operation(summary="Actualizar registro de videojuego")
-    @PutMapping("/{id}") @PreAuthorize("hasAuthority('PRODUCT_UPDATE')")
+    @PutMapping("/{id}") @PreAuthorize("hasAnyAuthority('VIDEOGAME_UPDATE', 'PRODUCT_UPDATE')")
     public VideoGameResponse update(@PathVariable Long id, @Valid @RequestBody VideoGameRequest dto){
         return service.update(id, dto);
     }
 
     @Operation(summary="Eliminar registro de videojuego")
-    @DeleteMapping("/{id}") @PreAuthorize("hasAuthority('PRODUCT_DELETE')")
+    @DeleteMapping("/{id}") @PreAuthorize("hasAnyAuthority('VIDEOGAME_DELETE', 'PRODUCT_DELETE')")
     public ResponseEntity<Void> delete(@PathVariable Long id){
         service.delete(id);
         return ResponseEntity.noContent().build();

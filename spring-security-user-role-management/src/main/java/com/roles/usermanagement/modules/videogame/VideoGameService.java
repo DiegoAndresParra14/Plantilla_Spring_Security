@@ -1,7 +1,7 @@
 package com.roles.usermanagement.modules.videogame;
 
-import com.roles.usermanagement.modules.customer.Customer;
-import com.roles.usermanagement.modules.customer.CustomerRepository;
+import com.roles.usermanagement.modules.client.Client;
+import com.roles.usermanagement.modules.client.ClientRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.*;
@@ -12,11 +12,11 @@ import org.springframework.http.HttpStatus;
 public class VideoGameService {
 
     private final VideoGameRepository repository;
-    private final CustomerRepository customerRepository;
+    private final ClientRepository clientRepository;
 
-    public VideoGameService(VideoGameRepository repository, CustomerRepository customerRepository){
+    public VideoGameService(VideoGameRepository repository, ClientRepository clientRepository){
         this.repository = repository;
-        this.customerRepository = customerRepository;
+        this.clientRepository = clientRepository;
     }
 
     private VideoGame existing(Long id, boolean lock) {
@@ -24,9 +24,9 @@ public class VideoGameService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Videojuego no encontrado"));
     }
 
-    private Customer cliente(Long id) {
+    private Client cliente(Long id) {
         if(id == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El ID del cliente es obligatorio");
-        return customerRepository.findById(id)
+        return clientRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cliente no encontrado"));
     }
 
@@ -39,8 +39,8 @@ public class VideoGameService {
     }
 
     private VideoGameResponse dto(VideoGame e) {
-        Customer c = e.getCliente();
-        return new VideoGameResponse(e.getId(), e.getTitulo(), e.getPlataforma(), e.getEstado(), c.getId(), c.getName());
+        Client c = e.getCliente();
+        return new VideoGameResponse(e.getId(), e.getTitulo(), e.getPlataforma(), e.getEstado(), c.getId(), c.getNombre());
     }
 
     @Transactional(readOnly = true)
